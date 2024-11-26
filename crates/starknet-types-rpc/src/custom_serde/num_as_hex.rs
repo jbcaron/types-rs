@@ -1,17 +1,17 @@
 use core::marker::PhantomData;
 
 /// A trait for types that should be serialized or deserialized as hexadecimal strings.
-pub trait NumAsHex<'de>: Sized {
+pub trait NumAsHex: Sized {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer;
 
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<'de, D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>;
 }
 
-impl<'de> NumAsHex<'de> for u64 {
+impl NumAsHex for u64 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -72,7 +72,7 @@ impl<'de> NumAsHex<'de> for u64 {
         serializer.serialize_str(s)
     }
 
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<'de, D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -148,9 +148,117 @@ impl<'de> NumAsHex<'de> for u64 {
     }
 }
 
-impl<'de, T> NumAsHex<'de> for Option<T>
+impl NumAsHex for u128 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        /// The symbols to be used for the hexadecimal representation.
+        const HEX_DIGITS: [u8; 16] = *b"0123456789abcdef";
+        /// The maximum number of digits in the hexadecimal representation of a `u64`.
+        const MAX_NUMBER_SIZE: usize = u128::MAX.ilog(16) as usize + 1;
+
+        if *self == 0 {
+            return serializer.serialize_str("0x0");
+        }
+
+        let mut buffer = [0u8; MAX_NUMBER_SIZE + 2]; // + 2 to account for 0x
+        let mut cursor = buffer.iter_mut().rev();
+        let mut n = *self;
+        while n != 0 {
+            *cursor.next().unwrap() = HEX_DIGITS[(n % 16) as usize];
+            n /= 16;
+        }
+        *cursor.next().unwrap() = b'x';
+        *cursor.next().unwrap() = b'0';
+
+        let remaining = cursor.len();
+
+        // SAFETY:
+        //  We only wrote ASCII characters to the buffer, ensuring that it is only composed
+        //  of valid UTF-8 code points. This unwrap can never fail. Just like the code above,
+        //  using `from_utf8_unchecked` is safe.
+        let s = core::str::from_utf8(&buffer[remaining..]).unwrap();
+
+        serializer.serialize_str(s)
+    }
+
+    fn deserialize<'de, D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct NumAsHexVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for NumAsHexVisitor {
+            type Value = u128;
+
+            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+                formatter.write_str("a hexadecimal string")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                // Explicitly avoid being UTF-8 aware.
+                let mut bytes = v.as_bytes();
+
+                // If the input string does not start with the `0x` prefix, then it's an
+                // error. The `NUM_AS_HEX` regex defined in the specification specifies
+                // this prefix as mandatory.
+                bytes = bytes
+                    .strip_prefix(b"0x")
+                    .ok_or_else(|| E::custom("expected a hexadecimal string starting with 0x"))?;
+
+                if bytes.is_empty() {
+                    return Err(E::custom("expected a hexadecimal string"));
+                }
+
+                // Remove the leading zeros from the string, if any.
+                // We need this in order to optimize the code below with the knowledge of the
+                // length of the hexadecimal representation of the number.
+                while let Some(rest) = bytes.strip_prefix(b"0") {
+                    bytes = rest;
+                }
+
+                // If the string has a size larger than the maximum size of the hexadecimal
+                // representation of a `u64`, then we're forced to overflow.
+                if bytes.len() > u128::MAX.ilog(16) as usize + 1 {
+                    return Err(E::custom("integer overflowed 64-bit"));
+                }
+
+                // Aggregate the digits into `n`,
+                // Digits from `0` to `9` represent numbers from `0` to `9`.
+                // Letters from `a` to `f` represent numbers from `10` to `15`.
+                //
+                // As specified in the spec, both uppercase and lowercase characters are
+                // allowed.
+                //
+                // Because we already checked the size of the string earlier, we know that
+                // the following code will never overflow.
+                let mut n = 0u128;
+                for &b in bytes.iter() {
+                    let unit = match b {
+                        b'0'..=b'9' => b as u128 - b'0' as u128,
+                        b'a'..=b'f' => b as u128 - b'a' as u128 + 10,
+                        b'A'..=b'F' => b as u128 - b'A' as u128 + 10,
+                        _ => return Err(E::custom("invalid hexadecimal digit")),
+                    };
+
+                    n = n * 16 + unit;
+                }
+
+                Ok(n)
+            }
+        }
+
+        deserializer.deserialize_str(NumAsHexVisitor)
+    }
+}
+
+impl<T> NumAsHex for Option<T>
 where
-    T: NumAsHex<'de>,
+    T: NumAsHex,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -162,7 +270,7 @@ where
         }
     }
 
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<'de, D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -170,7 +278,7 @@ where
 
         impl<'de, T> serde::de::Visitor<'de> for OptionVisitor<T>
         where
-            T: NumAsHex<'de>,
+            T: NumAsHex,
         {
             type Value = Option<T>;
 
@@ -198,72 +306,100 @@ where
 }
 
 #[cfg(test)]
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(transparent)]
-struct Helper {
-    #[serde(with = "NumAsHex")]
-    num: u64,
-}
+mod tests {
+    use super::*;
 
-#[cfg(test)]
-fn serialize(num: u64) -> serde_json::Result<alloc::string::String> {
-    let helper = Helper { num };
-    serde_json::to_string(&helper)
-}
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[serde(transparent)]
+    struct Helper<T>
+    where
+        T: NumAsHex,
+    {
+        #[serde(with = "NumAsHex")]
+        num: T,
+    }
 
-#[cfg(test)]
-fn deserialize(s: &str) -> serde_json::Result<u64> {
-    let helper: Helper = serde_json::from_str(s)?;
-    Ok(helper.num)
-}
+    fn serialize<T: NumAsHex>(num: T) -> serde_json::Result<String> {
+        let helper = Helper { num };
+        serde_json::to_string(&helper)
+    }
 
-#[test]
-#[cfg(test)]
-fn serialize_0_hex() {
-    assert_eq!(serialize(0x0).unwrap(), "\"0x0\"");
-}
+    fn deserialize<T: NumAsHex>(s: &str) -> serde_json::Result<T> {
+        let helper: Helper<T> = serde_json::from_str(s)?;
+        Ok(helper.num)
+    }
 
-#[test]
-#[cfg(test)]
-fn srialize_hex() {
-    assert_eq!(serialize(0x1234).unwrap(), "\"0x1234\"");
-}
+    #[test]
+    #[cfg(test)]
+    fn serialize_0_hex() {
+        assert_eq!(serialize(0u64).unwrap(), "\"0x0\"");
+        assert_eq!(serialize(0u128).unwrap(), "\"0x0\"");
+    }
 
-#[test]
-#[cfg(test)]
-fn srialize_max() {
-    assert_eq!(serialize(u64::MAX).unwrap(), "\"0xffffffffffffffff\"");
-}
+    #[test]
+    #[cfg(test)]
+    fn srialize_hex() {
+        assert_eq!(serialize(0x1234u64).unwrap(), "\"0x1234\"");
+        assert_eq!(serialize(0x1234u128).unwrap(), "\"0x1234\"");
+    }
 
-#[test]
-#[cfg(test)]
-fn deserialize_zero() {
-    assert_eq!(deserialize("\"0x0\"").unwrap(), 0);
-}
+    #[test]
+    #[cfg(test)]
+    fn srialize_max() {
+        assert_eq!(serialize(u64::MAX).unwrap(), "\"0xffffffffffffffff\"");
+        assert_eq!(
+            serialize(u128::MAX).unwrap(),
+            "\"0xffffffffffffffffffffffffffffffff\""
+        );
+    }
 
-#[test]
-#[cfg(test)]
-fn deserialize_zeros() {
-    assert_eq!(deserialize("\"0x00000\"").unwrap(), 0);
-}
+    #[test]
+    #[cfg(test)]
+    fn deserialize_zero() {
+        assert_eq!(deserialize::<u64>("\"0x0\"").unwrap(), 0);
+        assert_eq!(deserialize::<u128>("\"0x0\"").unwrap(), 0);
+    }
 
-#[test]
-#[cfg(test)]
-fn deserialize_max() {
-    assert_eq!(deserialize("\"0xFFFFFFFFFFFFFFFF\"").unwrap(), u64::MAX);
-}
+    #[test]
+    #[cfg(test)]
+    fn deserialize_zeros() {
+        assert_eq!(deserialize::<u64>("\"0x00000\"").unwrap(), 0);
+        assert_eq!(deserialize::<u128>("\"0x00000\"").unwrap(), 0);
+    }
 
-#[test]
-#[cfg(test)]
-fn deserialize_big_one() {
-    assert_eq!(
-        deserialize("\"0x000000000000000000000000000001\"").unwrap(),
-        1
-    );
-}
+    #[test]
+    #[cfg(test)]
+    fn deserialize_max() {
+        assert_eq!(
+            deserialize::<u64>("\"0xFFFFFFFFFFFFFFFF\"").unwrap(),
+            u64::MAX
+        );
+        assert_eq!(
+            deserialize::<u128>("\"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\"").unwrap(),
+            u128::MAX
+        );
+    }
 
-#[test]
-#[cfg(test)]
-fn deserialize_hex() {
-    assert_eq!(deserialize("\"0x1234\"").unwrap(), 0x1234);
+    #[test]
+    #[cfg(test)]
+    fn deserialize_big_one() {
+        assert_eq!(
+            deserialize::<u64>("\"0x000000000000000000000000000001\"").unwrap(),
+            1
+        );
+        assert_eq!(
+            deserialize::<u128>(
+                "\"0x00000000000000000000000000000000000000000000000000000000001\""
+            )
+            .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    #[cfg(test)]
+    fn deserialize_hex() {
+        assert_eq!(deserialize::<u64>("\"0x1234\"").unwrap(), 0x1234);
+        assert_eq!(deserialize::<u128>("\"0x1234\"").unwrap(), 0x1234);
+    }
 }

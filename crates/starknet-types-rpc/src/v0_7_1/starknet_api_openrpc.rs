@@ -158,7 +158,8 @@ pub struct BroadcastedDeclareTxnV3<F: Default> {
     pub sender_address: Address<F>,
     pub signature: Signature<F>,
     /// the tip for the transaction
-    pub tip: U64,
+    #[serde(with = "NumAsHex")]
+    pub tip: u64,
     /// Version of the transaction scheme
     pub version: Version,
 }
@@ -394,7 +395,8 @@ pub struct DeclareTxnV3<F> {
     pub sender_address: Address<F>,
     pub signature: Signature<F>,
     /// the tip for the transaction
-    pub tip: U64,
+    #[serde(with = "NumAsHex")]
+    pub tip: u64,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -458,7 +460,8 @@ pub struct DeployAccountTxnV3<F> {
     pub resource_bounds: ResourceBoundsMapping,
     pub signature: Signature<F>,
     /// the tip for the transaction
-    pub tip: U64,
+    #[serde(with = "NumAsHex")]
+    pub tip: u64,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -718,7 +721,8 @@ pub struct InvokeTxnV3<F> {
     pub sender_address: Address<F>,
     pub signature: Signature<F>,
     /// the tip for the transaction
-    pub tip: U64,
+    #[serde(with = "NumAsHex")]
+    pub tip: u64,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -837,9 +841,11 @@ pub enum PriceUnit {
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct ResourceBounds {
     /// the max amount of the resource that can be used in the tx
-    pub max_amount: U64,
+    #[serde(with = "NumAsHex")]
+    pub max_amount: u64,
     /// the max price per unit of this resource for this tx
-    pub max_price_per_unit: U128,
+    #[serde(with = "NumAsHex")]
+    pub max_price_per_unit: u128,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -1045,12 +1051,6 @@ pub struct TypedParameter {
     #[serde(rename = "type")]
     pub ty: String,
 }
-
-/// 64 bit integers, represented by hex string of length at most 32
-pub type U128 = String;
-
-/// 64 bit integers, represented by hex string of length at most 16
-pub type U64 = String;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct BlockHashAndNumber<F> {
