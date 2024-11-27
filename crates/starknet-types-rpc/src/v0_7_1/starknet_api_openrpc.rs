@@ -536,6 +536,13 @@ pub type EthAddress = String;
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Event<F> {
     pub from_address: Address<F>,
+    #[serde(flatten)]
+    pub event_content: EventContent<F>,
+}
+
+/// The content of an event
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub struct EventContent<F> {
     pub data: Vec<F>,
     pub keys: Vec<F>,
 }

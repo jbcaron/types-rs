@@ -9,7 +9,7 @@
 //
 
 use super::{
-    BlockId, BroadcastedTxn, ComputationResources, Event, ExecutionResources, FeeEstimate,
+    BlockId, BroadcastedTxn, ComputationResources, EventContent, ExecutionResources, FeeEstimate,
     FunctionCall, MsgToL1, StateDiff, TxnHash,
 };
 use alloc::string::String;
@@ -68,7 +68,7 @@ pub struct OrderedEvent<F> {
     /// the order of the event within the transaction
     pub order: u64,
     #[serde(flatten)]
-    pub event: Event<F>,
+    pub event: EventContent<F>,
 }
 
 /// a message alongside its order within the transaction
