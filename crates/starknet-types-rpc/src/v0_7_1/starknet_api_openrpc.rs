@@ -557,30 +557,39 @@ pub type EventAbiType = String;
 pub struct ExecutionResources {
     /// the number of BITWISE builtin instances
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bitwise_builtin_applications: Option<u64>,
     /// the number of EC_OP builtin instances
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ec_op_builtin_applications: Option<u64>,
     /// the number of ECDSA builtin instances
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ecdsa_builtin_applications: Option<u64>,
     /// The number of KECCAK builtin instances
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keccak_builtin_applications: Option<u64>,
     /// The number of unused memory cells (each cell is roughly equivalent to a step)
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub memory_holes: Option<u64>,
     /// The number of Pedersen builtin instances
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pedersen_builtin_applications: Option<u64>,
     /// The number of Poseidon builtin instances
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub poseidon_builtin_applications: Option<u64>,
     /// The number of RANGE_CHECK builtin instances
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub range_check_builtin_applications: Option<u64>,
     /// The number of accesses to the segment arena
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub segment_arena_builtin: Option<u64>,
     /// The number of Cairo steps used
     pub steps: u64,
