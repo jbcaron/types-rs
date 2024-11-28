@@ -201,32 +201,17 @@ pub struct CommonReceiptProperties<F> {
     /// The hash identifying the transaction
     pub transaction_hash: TxnHash<F>,
     #[serde(flatten)]
-    pub anon: Anonymous,
+    pub execution_status: ExecutionStatus,
 }
 
+// The execution status of the transaction
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
-#[serde(untagged)]
-pub enum Anonymous {
-    /// Common properties for a transaction receipt that was executed successfully
-    Successful(SuccessfulCommonReceiptProperties),
-    /// Common properties for a transaction receipt that was reverted
-    Reverted(RevertedCommonReceiptProperties),
-}
-
-/// Common properties for a transaction receipt that was executed successfully
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub struct SuccessfulCommonReceiptProperties {
-    /// The execution status of the transaction
-    pub execution_status: String, /* SUCCEEDED */
-}
-
-/// Common properties for a transaction receipt that was reverted
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub struct RevertedCommonReceiptProperties {
-    /// The execution status of the transaction
-    pub execution_status: String, /* REVERTED */
-    /// the revert reason for the failed execution
-    pub revert_reason: String,
+#[serde(tag = "execution_status", content = "revert_reason")]
+pub enum ExecutionStatus {
+    #[serde(rename = "SUCCEEDED")]
+    Successful,
+    #[serde(rename = "REVERTED")]
+    Reverted(String),
 }
 
 /// The resources consumed by the VM
