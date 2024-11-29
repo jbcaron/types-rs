@@ -84,9 +84,9 @@ pub struct OrderedMessage<F> {
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
 pub enum SimulationFlag {
     #[serde(rename = "SKIP_FEE_CHARGE")]
-    FeeCharge,
+    SkipFeeCharge,
     #[serde(rename = "SKIP_VALIDATE")]
-    Validate,
+    SkipValidate,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]

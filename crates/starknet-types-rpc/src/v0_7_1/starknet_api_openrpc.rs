@@ -876,7 +876,11 @@ pub struct SierraEntryPoint<F> {
 pub type Signature<F> = Vec<F>;
 
 /// Flags that indicate how to simulate a given transaction. By default, the sequencer behavior is replicated locally
-pub type SimulationFlagForEstimateFee = String;
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub enum SimulationFlagForEstimateFee {
+    #[serde(rename = "SKIP_VALIDATE")]
+    SkipValidate,
+}
 
 /// The change in state applied in this block, given as a mapping of addresses to the new values and/or new contracts
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
