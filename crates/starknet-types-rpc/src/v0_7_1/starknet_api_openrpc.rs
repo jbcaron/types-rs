@@ -741,8 +741,7 @@ pub struct L1HandlerTxn<F> {
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct L1HandlerTxnReceipt<F> {
     /// The message hash as it appears on the L1 core contract
-    #[serde(with = "NumAsHex")]
-    pub message_hash: u64,
+    pub message_hash: String,
     #[serde(flatten)]
     pub common_receipt_properties: CommonReceiptProperties<F>,
 }
