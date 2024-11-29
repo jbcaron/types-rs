@@ -19,13 +19,13 @@ pub enum BroadcastedDeclareTxn<F: Default> {
     V3(BroadcastedDeclareTxnV3<F>),
 
     /// Query-only broadcasted declare transaction.
-    #[serde(rename = "0x0000000000000000000000000000000100000000000000000000000000000001")]
+    #[serde(rename = "0x100000000000000000000000000000001")]
     QueryV1(BroadcastedDeclareTxnV1<F>),
     /// Query-only broadcasted declare transaction.
-    #[serde(rename = "0x0000000000000000000000000000000100000000000000000000000000000002")]
+    #[serde(rename = "0x100000000000000000000000000000002")]
     QueryV2(BroadcastedDeclareTxnV2<F>),
     /// Query-only broadcasted declare transaction.
-    #[serde(rename = "0x0000000000000000000000000000000100000000000000000000000000000003")]
+    #[serde(rename = "0x100000000000000000000000000000003")]
     QueryV3(BroadcastedDeclareTxnV3<F>),
 }
 
@@ -38,10 +38,10 @@ pub enum BroadcastedDeployAccountTxn<F> {
     V3(DeployAccountTxnV3<F>),
 
     /// Query-only broadcasted deploy account transaction.
-    #[serde(rename = "0x0000000000000000000000000000000100000000000000000000000000000001")]
+    #[serde(rename = "0x100000000000000000000000000000001")]
     QueryV1(DeployAccountTxnV1<F>),
     /// Query-only broadcasted deploy account transaction.
-    #[serde(rename = "0x0000000000000000000000000000000100000000000000000000000000000003")]
+    #[serde(rename = "0x100000000000000000000000000000003")]
     QueryV3(DeployAccountTxnV3<F>),
 }
 
@@ -56,12 +56,12 @@ pub enum BroadcastedInvokeTxn<F> {
     V3(InvokeTxnV3<F>),
 
     /// Query-only broadcasted invoke transaction.
-    #[serde(rename = "0x0000000000000000000000000000000100000000000000000000000000000000")]
+    #[serde(rename = "0x100000000000000000000000000000000")]
     QueryV0(InvokeTxnV0<F>),
     /// Query-only broadcasted invoke transaction.
-    #[serde(rename = "0x0000000000000000000000000000000100000000000000000000000000000001")]
+    #[serde(rename = "0x100000000000000000000000000000001")]
     QueryV1(InvokeTxnV1<F>),
     /// Query-only broadcasted invoke transaction.
-    #[serde(rename = "0x0000000000000000000000000000000100000000000000000000000000000003")]
+    #[serde(rename = "0x100000000000000000000000000000003")]
     QueryV3(InvokeTxnV3<F>),
 }
