@@ -91,11 +91,14 @@ impl NonZeroFelt {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct FeltIsZeroError;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct FromStrError;
+
+#[derive(Debug, PartialEq)]
+pub struct OutOfRangeError;
 
 impl Felt {
     /// [Felt] constant that's equal to 0.
@@ -114,6 +117,13 @@ impl Felt {
     pub const MAX: Self = Self(FieldElement::<Stark252PrimeField>::const_from_raw(
         UnsignedInteger::from_limbs([544, 0, 0, 32]),
     ));
+
+    /// Maximum value of [Felt] as a big-endian byte array.
+    const MAX_BYTES: [u8; 32] = [
+        0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00,
+    ];
 
     /// 2 ** 251
     pub const ELEMENT_UPPER_BOUND: Felt = Felt::from_raw([
@@ -141,6 +151,19 @@ impl Felt {
         FieldElement::from_bytes_be(bytes)
             .map(Self)
             .expect("from_bytes_be shouldn't fail for these many bytes")
+    }
+
+    /// Creates a new [Felt] from its big-endian representation in a [u8; 32] array.
+    ///
+    /// This function will return an error if the bytes are greater than the prime field.
+    pub fn from_bytes_be_checked(bytes: &[u8; 32]) -> Result<Self, OutOfRangeError> {
+        if bytes <= &Self::MAX_BYTES {
+            Ok(FieldElement::from_bytes_be(bytes)
+                .map(Self)
+                .expect("from_bytes_be shouldn't fail for these many bytes"))
+        } else {
+            Err(OutOfRangeError)
+        }
     }
 
     /// Creates a new [Felt] from its little-endian representation in a [u8; 32] array.
@@ -876,7 +899,7 @@ mod arithmetic {
 
 #[cfg(feature = "serde")]
 mod serde_impl {
-    use alloc::{format, string::String};
+    use alloc::format;
     use core::fmt;
     use serde::{de, Deserialize, Serialize};
 
@@ -926,12 +949,30 @@ mod serde_impl {
             E: de::Error,
         {
             // Strip the '0x' prefix from the encoded hex string
-            value
-                .strip_prefix("0x")
-                .and_then(|v| FieldElement::<Stark252PrimeField>::from_hex(v).ok())
-                .map(Felt)
-                .ok_or(String::from("expected hex string to be prefixed by '0x'"))
-                .map_err(de::Error::custom)
+            let hex_str = value.strip_prefix("0x").ok_or(de::Error::custom(
+                "expected hex string to be prefixed by '0x'",
+            ))?;
+
+            let hex_bytes = hex_str.as_bytes();
+            let hex_len = hex_bytes.len();
+            if hex_len > 64 {
+                return Err(de::Error::custom("hex string too long"));
+            }
+
+            let mut bytes = [0u8; 32];
+            let mut i = 0;
+            while i < hex_len / 2 {
+                bytes[32 - i - 1] =
+                    u8::from_str_radix(&hex_str[hex_len - 2 * i - 2..hex_len - 2 * i], 16)
+                        .map_err(|e| de::Error::custom(e))?;
+                i += 1;
+            }
+            if hex_len % 2 != 0 {
+                bytes[32 - i - 1] =
+                    u8::from_str_radix(&hex_str[0..1], 16).map_err(|e| de::Error::custom(e))?;
+            }
+
+            Felt::from_bytes_be_checked(&bytes).map_err(|e| de::Error::custom(e))
         }
 
         fn visit_bytes<E>(self, value: &[u8]) -> Result<Self::Value, E>
@@ -939,7 +980,7 @@ mod serde_impl {
             E: de::Error,
         {
             match value.try_into() {
-                Ok(v) => Ok(Felt::from_bytes_be(&v)),
+                Ok(v) => Ok(Felt::from_bytes_be_checked(&v).map_err(|e| de::Error::custom(e))?),
                 _ => Err(de::Error::invalid_length(value.len(), &self)),
             }
         }
@@ -1060,6 +1101,15 @@ mod errors {
             "Failed to create Felt from string".fmt(f)
         }
     }
+
+    #[cfg(feature = "std")]
+    impl std::error::Error for OutOfRangeError {}
+
+    impl fmt::Display for OutOfRangeError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            "Felt is out of range".fmt(f)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1102,6 +1152,19 @@ mod test {
         }
 
         bits
+    }
+
+    // Helper function to generate a table of bytes representing valid Felt values in big-endian order
+    fn any_valid_felt_bytes() -> impl Strategy<Value = [u8; 32]> {
+        prop::array::uniform32(0u8..=0x08)
+            .prop_filter("must be less than MAX_BYTES", |arr| arr <= &Felt::MAX_BYTES)
+    }
+
+    // Helper function to generate a table of bytes representing invalid Felt values in big-endian order
+    fn any_invalid_felt_bytes() -> impl Strategy<Value = [u8; 32]> {
+        prop::array::uniform32(0u8..=0xff).prop_filter("must be greater than MAX_BYTES", |arr| {
+            arr > &Felt::MAX_BYTES
+        })
     }
 
     proptest! {
@@ -1196,6 +1259,18 @@ mod test {
         fn from_bytes_be_in_range(ref x in any::<[u8; 32]>()) {
             let x = Felt::from_bytes_be(x);
             prop_assert!(x <= Felt::MAX);
+        }
+
+        #[test]
+        fn from_bytes_be_checked_in_range(ref x in any_valid_felt_bytes()) {
+            let x = Felt::from_bytes_be_checked(x).unwrap();
+            prop_assert!(x <= Felt::MAX);
+        }
+
+        #[test]
+        fn from_bytes_be_checked_out_of_range(ref x in any_invalid_felt_bytes()) {
+            let x = Felt::from_bytes_be_checked(x);
+            prop_assert_eq!(x, Err(OutOfRangeError));
         }
 
         #[test]
