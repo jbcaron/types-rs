@@ -29,6 +29,19 @@ pub enum BroadcastedDeclareTxn<F: Default> {
     QueryV3(BroadcastedDeclareTxnV3<F>),
 }
 
+impl<F: Default> BroadcastedDeclareTxn<F> {
+    pub fn is_query(&self) -> bool {
+        match self {
+            BroadcastedDeclareTxn::QueryV1(_)
+            | BroadcastedDeclareTxn::QueryV2(_)
+            | BroadcastedDeclareTxn::QueryV3(_) => true,
+            BroadcastedDeclareTxn::V1(_)
+            | BroadcastedDeclareTxn::V2(_)
+            | BroadcastedDeclareTxn::V3(_) => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "version")]
 pub enum BroadcastedDeployAccountTxn<F> {
@@ -43,6 +56,17 @@ pub enum BroadcastedDeployAccountTxn<F> {
     /// Query-only broadcasted deploy account transaction.
     #[serde(rename = "0x100000000000000000000000000000003")]
     QueryV3(DeployAccountTxnV3<F>),
+}
+
+impl<F> BroadcastedDeployAccountTxn<F> {
+    pub fn is_query(&self) -> bool {
+        match self {
+            BroadcastedDeployAccountTxn::QueryV1(_) | BroadcastedDeployAccountTxn::QueryV3(_) => {
+                true
+            }
+            BroadcastedDeployAccountTxn::V1(_) | BroadcastedDeployAccountTxn::V3(_) => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -64,4 +88,17 @@ pub enum BroadcastedInvokeTxn<F> {
     /// Query-only broadcasted invoke transaction.
     #[serde(rename = "0x100000000000000000000000000000003")]
     QueryV3(InvokeTxnV3<F>),
+}
+
+impl<F> BroadcastedInvokeTxn<F> {
+    pub fn is_query(&self) -> bool {
+        match self {
+            BroadcastedInvokeTxn::QueryV0(_)
+            | BroadcastedInvokeTxn::QueryV1(_)
+            | BroadcastedInvokeTxn::QueryV3(_) => true,
+            BroadcastedInvokeTxn::V0(_)
+            | BroadcastedInvokeTxn::V1(_)
+            | BroadcastedInvokeTxn::V3(_) => false,
+        }
+    }
 }

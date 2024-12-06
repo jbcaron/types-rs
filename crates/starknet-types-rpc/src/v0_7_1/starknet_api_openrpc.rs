@@ -184,6 +184,16 @@ pub enum BroadcastedTxn<F: Default> {
     DeployAccount(BroadcastedDeployAccountTxn<F>),
 }
 
+impl<F: Default> BroadcastedTxn<F> {
+    pub fn is_query(&self) -> bool {
+        match self {
+            BroadcastedTxn::Invoke(txn) => txn.is_query(),
+            BroadcastedTxn::Declare(txn) => txn.is_query(),
+            BroadcastedTxn::DeployAccount(txn) => txn.is_query(),
+        }
+    }
+}
+
 /// StarkNet chain id, given in hex representation.
 pub type ChainId = u64;
 
