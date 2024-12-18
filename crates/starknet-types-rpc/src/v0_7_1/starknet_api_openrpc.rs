@@ -160,17 +160,6 @@ pub struct BroadcastedDeclareTxnV3<F: Default> {
     /// the tip for the transaction
     #[serde(with = "NumAsHex")]
     pub tip: u64,
-    /// Version of the transaction scheme
-    pub version: Version,
-}
-
-/// Version of the transaction scheme
-#[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
-pub enum Version {
-    #[serde(rename = "0x100000000000000000000000000000003")]
-    X100000000000000000000000000000003,
-    #[serde(rename = "0x3")]
-    X3,
 }
 
 #[derive(Eq, Hash, PartialEq, Serialize, Deserialize, Clone, Debug)]
